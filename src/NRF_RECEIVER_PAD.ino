@@ -223,6 +223,11 @@ void on_disconnection() {
 	servo[1].write(0);
 	servo[2].write(0);
 	servo[3].write(0);
+	
+	analogWrite(CONNECT_A0, 0);
+	analogWrite(CONNECT_A1, 0);
+	analogWrite(CONNECT_A2, 0);
+	analogWrite(CONNECT_A3, 0);
 };
 
 void button_action(int button, int lpress) {
@@ -234,6 +239,11 @@ void sticks_action(int sticks[4]) {
 	if (INVERT_STICK1) sticks[1] = 1024 - sticks[1];
 	if (INVERT_STICK2) sticks[2] = 1024 - sticks[2];
 	if (INVERT_STICK3) sticks[3] = 1024 - sticks[3];
+	
+	analogWrite(CONNECT_A0, sticks[0]);
+	analogWrite(CONNECT_A1, sticks[1]);
+	analogWrite(CONNECT_A2, sticks[2]);
+	analogWrite(CONNECT_A3, sticks[3]);
 	
 	int msticks[4];
 	msticks[0] = map(sticks[0], 0, 1023, MAP_STICK0);
