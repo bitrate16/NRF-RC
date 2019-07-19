@@ -123,9 +123,11 @@ void setup() {
 	radio.openWritingPipe(addresses[0]);
     radio.openReadingPipe(1, addresses[1]);
 	
+#ifdef DEBUG_PRINT
 	// Debugger output
 	printf_begin();
 	radio.printDetails();
+#endif
 	
 	radio.startListening();
 	
