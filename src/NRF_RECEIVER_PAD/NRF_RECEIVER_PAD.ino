@@ -36,10 +36,15 @@
 #define INVERT_STICK3 0
 
 // Mappings for sticks
-#define MAP_STICK0 0, 180
-#define MAP_STICK1 0, 180
-#define MAP_STICK2 0, 180
-#define MAP_STICK3 0, 180
+#define SERVO_MAP_STICK0 0, 180
+#define SERVO_MAP_STICK1 0, 180
+#define SERVO_MAP_STICK2 0, 180
+#define SERVO_MAP_STICK3 0, 180
+
+#define ANALOG_MAP_STICK0 0, 255
+#define ANALOG_MAP_STICK1 0, 255
+#define ANALOG_MAP_STICK2 0, 255
+#define ANALOG_MAP_STICK3 0, 255
 
 // Optional moddings
 
@@ -219,15 +224,15 @@ void on_connection() {
 };
 
 void on_disconnection() {
-	servo[0].write(0);
-	servo[1].write(0);
-	servo[2].write(0);
-	servo[3].write(0);
+	// servo[0].write(0);
+	// servo[1].write(0);
+	// servo[2].write(0);
+	// servo[3].write(0);
 	
-	analogWrite(CONNECT_A0, 0);
-	analogWrite(CONNECT_A1, 0);
-	analogWrite(CONNECT_A2, 0);
-	analogWrite(CONNECT_A3, 0);
+	// analogWrite(CONNECT_A0, 0);
+	// analogWrite(CONNECT_A1, 0);
+	// analogWrite(CONNECT_A2, 0);
+	// analogWrite(CONNECT_A3, 0);
 };
 
 void button_action(int button, int lpress) {
@@ -240,16 +245,17 @@ void sticks_action(int sticks[4]) {
 	if (INVERT_STICK2) sticks[2] = 1024 - sticks[2];
 	if (INVERT_STICK3) sticks[3] = 1024 - sticks[3];
 	
-	analogWrite(CONNECT_A0, sticks[0]);
-	analogWrite(CONNECT_A1, sticks[1]);
-	analogWrite(CONNECT_A2, sticks[2]);
-	analogWrite(CONNECT_A3, sticks[3]);
-	
 	int msticks[4];
-	msticks[0] = map(sticks[0], 0, 1023, MAP_STICK0);
-	msticks[1] = map(sticks[1], 0, 1023, MAP_STICK1);
-	msticks[2] = map(sticks[2], 0, 1023, MAP_STICK2);
-	msticks[3] = map(sticks[3], 0, 1023, MAP_STICK3);
+	msticks[0] = map(sticks[0], 0, 1023, SERVO_MAP_STICK0);
+	msticks[1] = map(sticks[1], 0, 1023, SERVO_MAP_STICK1);
+	msticks[2] = map(sticks[2], 0, 1023, SERVO_MAP_STICK2);
+	msticks[3] = map(sticks[3], 0, 1023, SERVO_MAP_STICK3);
+	
+	int asticks[4];
+	asticks[0] = map(sticks[0], 0, 1023, ANALOG_MAP_STICK0);
+	asticks[1] = map(sticks[1], 0, 1023, ANALOG_MAP_STICK1);
+	asticks[2] = map(sticks[2], 0, 1023, ANALOG_MAP_STICK2);
+	asticks[3] = map(sticks[3], 0, 1023, ANALOG_MAP_STICK3);
 	
 #ifdef DEBUG_PRINT
 	Serial.print("Servo write: ");
@@ -257,10 +263,25 @@ void sticks_action(int sticks[4]) {
 	Serial.print(msticks[1]); Serial.print(' ');
 	Serial.print(msticks[2]); Serial.print(' ');
 	Serial.print(msticks[3]); Serial.println();
+	
+	Serial.print("Analog write: ");
+	Serial.print(asticks[0]); Serial.print(' ');
+	Serial.print(asticks[1]); Serial.print(' ');
+	Serial.print(asticks[2]); Serial.print(' ');
+	Serial.print(asticks[3]); Serial.println();
 #endif
 	
 	servo[0].write(msticks[0]);
 	servo[1].write(msticks[1]);
 	servo[2].write(msticks[2]);
 	servo[3].write(msticks[3]);
+	
+	analogWrite(CONNECT_A0, asticks[0]);
+	analogWrite(CONNECT_A1, asticks[1]);
+	analogWrite(CONNECT_A2, asticks[2]);
+	analogWrite(CONNECT_A3, asticks[3]);
+	
+	// Drive via H-bridge
+	digitalWrite(CONNECT_5, asticks[2] > 140);
+	digitalWrite(CONNECT_6, asticks[2] < 110);
 };

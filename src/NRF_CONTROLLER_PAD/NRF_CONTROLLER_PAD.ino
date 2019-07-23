@@ -6,6 +6,7 @@
 #include "RF24.h"
 
 // #define DEBUG_PRINT
+// #define DEBUG_PRINT_RAW
 #ifdef DEBUG_PRINT
 #include <printf.h>
 #endif
@@ -52,8 +53,20 @@
 #define TX_DROP_EDGE 16
 
 
+// Long press stick 0 to start calibration, long press to stop
 // Struct with min/max calibration values
 struct STICK_CALIBRATION {
+	int stmx[4];
+	int stmn[4];
+};
+
+// Long press right stick to start mapping (transmitter will keep sending data to receiver)
+// 1. Press button 0 or 1 to select right/left stick
+// 2. Press button 2 or 3 to select X or Y calibration
+// 3. Press button 4 or 5 to set value for min or max
+// 4. Long press stick 1 to stop
+// Struct with min/max mapping for all sticks
+struct STICK_MAPPING {
 	int stmx[4];
 	int stmn[4];
 };
@@ -102,9 +115,17 @@ struct Package {
 STICK_CALIBRATION calibration;
 bool calibration_mode = 0;
 
+// info of sticks calibration
+STICK_MAPPING mapping;
+bool map_mode = 0;
+bool mapping_stick = 0;
+bool mapping_direction = 0;
+
+int sticks[4];
+
 // info of buttons states
-BTN_STATE         buttons;
-LED_STATE         led_state;
+BTN_STATE buttons;
+LED_STATE led_state;
 
 // Use NRF24lo1 transmitter on pins 7, 8
 RF24 radio(7, 8);
@@ -151,11 +172,51 @@ void setup() {
 	printf_begin();
 	radio.printDetails();
 #endif
-	
-	// Read calibration values
-	byte* cal_struct = (byte*) &calibration;
-	for (int i = 0; i < sizeof(STICK_CALIBRATION); ++i)
-		cal_struct[i] = EEPROM.read(i);
+
+	if (EEPROM.read(sizeof(STICK_CALIBRATION) + sizeof(STICK_MAPPING))) {
+		// Read calibration values
+		byte* cal_struct = (byte*) &calibration;
+		for (int i = 0; i < sizeof(STICK_CALIBRATION); ++i)
+			cal_struct[i] = EEPROM.read(i);
+		
+		// Read mapping values
+		byte* map_struct = (byte*) &mapping;
+		for (int i = 0; i < sizeof(STICK_MAPPING); ++i)
+			map_struct[i] = EEPROM.read(sizeof(STICK_CALIBRATION) + i);
+	} else {
+#ifdef DEBUG_PRINT
+		Serial.println("Setting new values");
+#endif
+		
+		// Default setup for sticks
+		calibration.stmn[0] = 0;
+		calibration.stmn[1] = 0;
+		calibration.stmn[2] = 0;
+		calibration.stmn[3] = 0;
+		calibration.stmx[0] = 1023;
+		calibration.stmx[1] = 1023;
+		calibration.stmx[2] = 1023;
+		calibration.stmx[3] = 1023;
+		
+		byte* cal_struct = (byte*) &calibration;
+		for (int i = 0; i < sizeof(STICK_CALIBRATION); ++i)
+			EEPROM.write(i, cal_struct[i]);
+		
+		mapping.stmn[0] = 0;
+		mapping.stmn[1] = 0;
+		mapping.stmn[2] = 0;
+		mapping.stmn[3] = 0;
+		mapping.stmx[0] = 1023;
+		mapping.stmx[1] = 1023;
+		mapping.stmx[2] = 1023;
+		mapping.stmx[3] = 1023;
+		
+		byte* map_struct = (byte*) &mapping;
+		for (int i = 0; i < sizeof(STICK_MAPPING); ++i)
+			EEPROM.write(sizeof(STICK_CALIBRATION) + i, map_struct[i]);
+		
+		EEPROM.write(sizeof(STICK_CALIBRATION) + sizeof(STICK_MAPPING), 1);
+	}
 	
 #ifdef DEBUG_PRINT
 	Serial.println("CALIBRATION: ");
@@ -164,6 +225,16 @@ void setup() {
 		Serial.print(calibration.stmn[i]);
 		Serial.print(", ");
 		Serial.print(calibration.stmx[i]);
+		Serial.print(") ");
+	}
+	Serial.println();
+	
+	Serial.println("MAPPING: ");
+	for (int i = 0; i < 4; ++i) {
+		Serial.print('(');
+		Serial.print(mapping.stmn[i]);
+		Serial.print(", ");
+		Serial.print(mapping.stmx[i]);
 		Serial.print(") ");
 	}
 	Serial.println();
@@ -196,15 +267,11 @@ void setup() {
 }
 
 void loop() {
-	
-	// Serial.print("LED_LOOP "); Serial.print(led_state.type); Serial.print(' '); Serial.print(led_state.ptype); Serial.print(' '); Serial.print(led_state.state); Serial.print(' '); Serial.println(led_state.time);
-	
 	// Read sticks & map to calibration
-	int sticks[4];
-	sticks[0] = analogRead(STICK0);        if (!calibration_mode) sticks[0] = map(sticks[0], calibration.stmn[0], calibration.stmx[0], 0, 1023);
-	sticks[1] = analogRead(STICK1);        if (!calibration_mode) sticks[1] = map(sticks[1], calibration.stmn[1], calibration.stmx[1], 0, 1023);
-	sticks[2] = 1024 - analogRead(STICK2); if (!calibration_mode) sticks[2] = map(sticks[2], calibration.stmn[2], calibration.stmx[2], 0, 1023);
-	sticks[3] = 1024 - analogRead(STICK3); if (!calibration_mode) sticks[3] = map(sticks[3], calibration.stmn[3], calibration.stmx[3], 0, 1023);
+	sticks[0] = analogRead(STICK0);       
+	sticks[1] = analogRead(STICK1);       
+	sticks[2] = 1024 - analogRead(STICK2);
+	sticks[3] = 1024 - analogRead(STICK3);
 	
 	// Read stick buttons
 	int rbtn[6];
@@ -218,6 +285,7 @@ void loop() {
 	rbtn[5] = !digitalRead(BTN3);
 	
 #ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_RAW
 	// Debug out
 	Serial.print(sticks[0]); Serial.print(' ');
 	Serial.print(sticks[1]); Serial.print(' ');
@@ -233,6 +301,15 @@ void loop() {
 	Serial.print(rbtn[5]); Serial.print(' ');
 	Serial.println();
 #endif
+#endif
+
+	// Map to calibration
+	if (!calibration_mode) {		
+		sticks[0] = map(sticks[0], calibration.stmn[0], calibration.stmx[0], 0, 1023);
+		sticks[1] = map(sticks[1], calibration.stmn[1], calibration.stmx[1], 0, 1023);
+		sticks[2] = map(sticks[2], calibration.stmn[2], calibration.stmx[2], 0, 1023);
+		sticks[3] = map(sticks[3], calibration.stmn[3], calibration.stmx[3], 0, 1023);
+	}
 	
 	// Check buttons states and update timings
 	for (int i = 0; i < 6; ++i) {
@@ -276,11 +353,12 @@ void loop() {
 		}
 	}
 	
+	if (calibration_mode || map_mode)
+		 if (led_state.type != LED_ST_FLASH && led_state.type != LED_ST_FAST_FLASH) 
+			led_set(LED_ST_FAST_FLASH, 4);
+	
 	// If !paired
 	if (calibration_mode) {
-		if (led_state.type != LED_ST_FLASH && led_state.type != LED_ST_FAST_FLASH) 
-			led_set(LED_ST_FLASH, 4);
-	
 		for (int i = 0; i < 4; ++i) {
 			if (calibration.stmn[i] > sticks[i])
 				calibration.stmn[i] = sticks[i];
@@ -290,6 +368,14 @@ void loop() {
 		}
 	} else {
 		// Sending package with sticks
+		
+		// Map to mapping
+		if (!map_mode) {
+			sticks[0] = map(sticks[0], 0, 1023, mapping.stmn[0], mapping.stmx[0]);
+			sticks[1] = map(sticks[1], 0, 1023, mapping.stmn[1], mapping.stmx[1]);
+			sticks[2] = map(sticks[2], 0, 1023, mapping.stmn[2], mapping.stmx[2]);
+			sticks[3] = map(sticks[3], 0, 1023, mapping.stmn[3], mapping.stmx[3]);
+		}
 		
 		Package pack;
 		pack.type = PACKAGE_STICKS;
@@ -337,10 +423,7 @@ void led_set_state(int state) {
 	}
 };
 
-void led_set(int type, int count) {
-	
-	// Serial.print("LED_STATE_SET "); Serial.print(type); Serial.print(' '); Serial.println(count);
-	
+void led_set(int type, int count) {	
 	if (type == LED_ST_CONST || type == LED_ST_OFF) {
 		led_set_state(type == LED_ST_CONST);
 		led_state.type = type;
@@ -368,13 +451,7 @@ void btn_action(int number, int lpress) {
 #endif
 	
 	switch(number) {
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-		case 5:
-			break;
-			
+		// calibration
 		case 0: { 
 			// press  = ?
 			// Lpress = calibration
@@ -407,6 +484,86 @@ void btn_action(int number, int lpress) {
 					
 					calibration_mode = 1;
 				}
+			}
+			break;
+		}
+		
+		case 1: { 
+			// press  = ?
+			// Lpress = mapping
+			
+			if (lpress) {
+				if (map_mode) {
+					// Write mapping values
+					byte* map_struct = (byte*) &mapping;
+					for (int i = 0; i < sizeof(STICK_MAPPING); ++i)
+						EEPROM.write(sizeof(STICK_CALIBRATION) + i, map_struct[i]);
+					
+					map_mode = 0;
+					
+#ifdef DEBUG_PRINT
+					Serial.println("NEW MAPPING: ");
+					for (int i = 0; i < 4; ++i) {
+						Serial.print('(');
+						Serial.print(mapping.stmn[i]);
+						Serial.print(", ");
+						Serial.print(mapping.stmx[i]);
+						Serial.print(") ");
+					}
+					Serial.println();
+#endif
+				} else 					
+					map_mode = 1;
+			}
+			break;
+		}
+		
+		case 2: { 
+			// press  = ?
+			// Lpress = ?
+			
+			if (map_mode) {
+				// lpress - left stick
+				// press  - X axis
+				
+				if (lpress) 
+					mapping_stick = 0;
+				else
+					mapping_direction = 0;
+			}
+			break;
+		}
+		
+		case 3: { 
+			// press  = ?
+			// Lpress = ?
+			
+			if (map_mode) {
+				// lpress - right stick
+				// press  - Y axis
+				
+				if (lpress) 
+					mapping_stick = 1;
+				else
+					mapping_direction = 1;
+			}
+			break;
+		}
+		
+		case 4: {
+			if (map_mode) {
+				// Set min mapping for current stick
+				int stick = (mapping_stick << 1) | mapping_direction;
+				mapping.stmn[stick] = sticks[stick];
+			}
+			break;
+		}
+		
+		case 5: {
+			if (map_mode) {
+				// Set max mapping for current stick
+				int stick = (mapping_stick << 1) | mapping_direction;
+				mapping.stmx[stick] = sticks[stick];
 			}
 			break;
 		}
