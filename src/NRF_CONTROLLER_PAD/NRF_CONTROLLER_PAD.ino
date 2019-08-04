@@ -60,17 +60,6 @@ struct STICK_CALIBRATION {
 	int stmn[4];
 };
 
-// Long press right stick to start mapping (transmitter will keep sending data to receiver)
-// 1. Press button 0 or 1 to select right/left stick
-// 2. Press button 2 or 3 to select X or Y calibration
-// 3. Press button 4 or 5 to set value for min or max
-// 4. Long press stick 1 to stop
-// Struct with min/max mapping for all sticks
-struct STICK_MAPPING {
-	int stmx[4];
-	int stmn[4];
-};
-
 // Struct with info of button presses
 struct BTN_STATE {
 	int press[6];
@@ -114,12 +103,6 @@ struct Package {
 // info of sticks calibration
 STICK_CALIBRATION calibration;
 bool calibration_mode = 0;
-
-// info of sticks calibration
-STICK_MAPPING mapping;
-bool map_mode = 0;
-bool mapping_stick = 0;
-bool mapping_direction = 0;
 
 int sticks[4];
 
@@ -173,50 +156,10 @@ void setup() {
 	radio.printDetails();
 #endif
 
-	if (EEPROM.read(sizeof(STICK_CALIBRATION) + sizeof(STICK_MAPPING))) {
-		// Read calibration values
-		byte* cal_struct = (byte*) &calibration;
-		for (int i = 0; i < sizeof(STICK_CALIBRATION); ++i)
-			cal_struct[i] = EEPROM.read(i);
-		
-		// Read mapping values
-		byte* map_struct = (byte*) &mapping;
-		for (int i = 0; i < sizeof(STICK_MAPPING); ++i)
-			map_struct[i] = EEPROM.read(sizeof(STICK_CALIBRATION) + i);
-	} else {
-#ifdef DEBUG_PRINT
-		Serial.println("Setting new values");
-#endif
-		
-		// Default setup for sticks
-		calibration.stmn[0] = 0;
-		calibration.stmn[1] = 0;
-		calibration.stmn[2] = 0;
-		calibration.stmn[3] = 0;
-		calibration.stmx[0] = 1023;
-		calibration.stmx[1] = 1023;
-		calibration.stmx[2] = 1023;
-		calibration.stmx[3] = 1023;
-		
-		byte* cal_struct = (byte*) &calibration;
-		for (int i = 0; i < sizeof(STICK_CALIBRATION); ++i)
-			EEPROM.write(i, cal_struct[i]);
-		
-		mapping.stmn[0] = 0;
-		mapping.stmn[1] = 0;
-		mapping.stmn[2] = 0;
-		mapping.stmn[3] = 0;
-		mapping.stmx[0] = 1023;
-		mapping.stmx[1] = 1023;
-		mapping.stmx[2] = 1023;
-		mapping.stmx[3] = 1023;
-		
-		byte* map_struct = (byte*) &mapping;
-		for (int i = 0; i < sizeof(STICK_MAPPING); ++i)
-			EEPROM.write(sizeof(STICK_CALIBRATION) + i, map_struct[i]);
-		
-		EEPROM.write(sizeof(STICK_CALIBRATION) + sizeof(STICK_MAPPING), 1);
-	}
+	// Read calibration values
+	byte* cal_struct = (byte*) &calibration;
+	for (int i = 0; i < sizeof(STICK_CALIBRATION); ++i)
+		cal_struct[i] = EEPROM.read(i);
 	
 #ifdef DEBUG_PRINT
 	Serial.println("CALIBRATION: ");
@@ -225,16 +168,6 @@ void setup() {
 		Serial.print(calibration.stmn[i]);
 		Serial.print(", ");
 		Serial.print(calibration.stmx[i]);
-		Serial.print(") ");
-	}
-	Serial.println();
-	
-	Serial.println("MAPPING: ");
-	for (int i = 0; i < 4; ++i) {
-		Serial.print('(');
-		Serial.print(mapping.stmn[i]);
-		Serial.print(", ");
-		Serial.print(mapping.stmx[i]);
 		Serial.print(") ");
 	}
 	Serial.println();
@@ -353,7 +286,7 @@ void loop() {
 		}
 	}
 	
-	if (calibration_mode || map_mode)
+	if (calibration_mode)
 		 if (led_state.type != LED_ST_FLASH && led_state.type != LED_ST_FAST_FLASH) 
 			led_set(LED_ST_FAST_FLASH, 4);
 	
@@ -368,14 +301,6 @@ void loop() {
 		}
 	} else {
 		// Sending package with sticks
-		
-		// Map to mapping
-		if (!map_mode) {
-			sticks[0] = map(sticks[0], 0, 1023, mapping.stmn[0], mapping.stmx[0]);
-			sticks[1] = map(sticks[1], 0, 1023, mapping.stmn[1], mapping.stmx[1]);
-			sticks[2] = map(sticks[2], 0, 1023, mapping.stmn[2], mapping.stmx[2]);
-			sticks[3] = map(sticks[3], 0, 1023, mapping.stmn[3], mapping.stmx[3]);
-		}
 		
 		Package pack;
 		pack.type = PACKAGE_STICKS;
@@ -490,31 +415,8 @@ void btn_action(int number, int lpress) {
 		
 		case 1: { 
 			// press  = ?
-			// Lpress = mapping
+			// Lpress = ?
 			
-			if (lpress) {
-				if (map_mode) {
-					// Write mapping values
-					byte* map_struct = (byte*) &mapping;
-					for (int i = 0; i < sizeof(STICK_MAPPING); ++i)
-						EEPROM.write(sizeof(STICK_CALIBRATION) + i, map_struct[i]);
-					
-					map_mode = 0;
-					
-#ifdef DEBUG_PRINT
-					Serial.println("NEW MAPPING: ");
-					for (int i = 0; i < 4; ++i) {
-						Serial.print('(');
-						Serial.print(mapping.stmn[i]);
-						Serial.print(", ");
-						Serial.print(mapping.stmx[i]);
-						Serial.print(") ");
-					}
-					Serial.println();
-#endif
-				} else 					
-					map_mode = 1;
-			}
 			break;
 		}
 		
@@ -522,15 +424,6 @@ void btn_action(int number, int lpress) {
 			// press  = ?
 			// Lpress = ?
 			
-			if (map_mode) {
-				// lpress - left stick
-				// press  - X axis
-				
-				if (lpress) 
-					mapping_stick = 0;
-				else
-					mapping_direction = 0;
-			}
 			break;
 		}
 		
@@ -538,33 +431,20 @@ void btn_action(int number, int lpress) {
 			// press  = ?
 			// Lpress = ?
 			
-			if (map_mode) {
-				// lpress - right stick
-				// press  - Y axis
-				
-				if (lpress) 
-					mapping_stick = 1;
-				else
-					mapping_direction = 1;
-			}
 			break;
 		}
 		
 		case 4: {
-			if (map_mode) {
-				// Set min mapping for current stick
-				int stick = (mapping_stick << 1) | mapping_direction;
-				mapping.stmn[stick] = sticks[stick];
-			}
+			// press  = ?
+			// Lpress = ?
+			
 			break;
 		}
 		
 		case 5: {
-			if (map_mode) {
-				// Set max mapping for current stick
-				int stick = (mapping_stick << 1) | mapping_direction;
-				mapping.stmx[stick] = sticks[stick];
-			}
+			// press  = ?
+			// Lpress = ?
+			
 			break;
 		}
 	}
