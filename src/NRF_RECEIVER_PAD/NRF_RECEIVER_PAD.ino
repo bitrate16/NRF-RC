@@ -39,7 +39,7 @@
 #define SERVO_MAP_STICK0 0, 180
 #define SERVO_MAP_STICK1 0, 180
 #define SERVO_MAP_STICK2 0, 180
-#define SERVO_MAP_STICK3 0, 180
+#define SERVO_MAP_STICK3 60, 120
 
 #define ANALOG_MAP_STICK0 0, 255
 #define ANALOG_MAP_STICK1 0, 255
@@ -162,10 +162,10 @@ void setup() {
 	pinMode(CONNECT_A7, OUTPUT);
 	
 	// Set up servos
-	servo[0].attach(CONNECT_0);
+	servo[0].attach(CONNECT_0); // Remapped servos to leave three PWM pins
 	servo[1].attach(CONNECT_1);
-	servo[2].attach(CONNECT_2);
-	servo[3].attach(CONNECT_3);
+	servo[2].attach(CONNECT_5);
+	servo[3].attach(CONNECT_6);
 	
 	// Clear disconnect trigger
 	last_receive_time = millis();
@@ -193,7 +193,39 @@ void loop() {
 				Serial.print(pack.data.sticks.sticks[2]); Serial.print(' ');
 				Serial.print(pack.data.sticks.sticks[3]); Serial.println();
 #endif
-				sticks_action(pack.data.sticks.sticks);
+
+				if (INVERT_STICK0) pack.data.sticks.sticks[0] = 1024 - pack.data.sticks.sticks[0];
+				if (INVERT_STICK1) pack.data.sticks.sticks[1] = 1024 - pack.data.sticks.sticks[1];
+				if (INVERT_STICK2) pack.data.sticks.sticks[2] = 1024 - pack.data.sticks.sticks[2];
+				if (INVERT_STICK3) pack.data.sticks.sticks[3] = 1024 - pack.data.sticks.sticks[3];
+				
+				int msticks[4];
+				msticks[0] = map(pack.data.sticks.sticks[0], 0, 1023, SERVO_MAP_STICK0);
+				msticks[1] = map(pack.data.sticks.sticks[1], 0, 1023, SERVO_MAP_STICK1);
+				msticks[2] = map(pack.data.sticks.sticks[2], 0, 1023, SERVO_MAP_STICK2);
+				msticks[3] = map(pack.data.sticks.sticks[3], 0, 1023, SERVO_MAP_STICK3);
+				
+				int asticks[4];
+				asticks[0] = map(pack.data.sticks.sticks[0], 0, 1023, ANALOG_MAP_STICK0);
+				asticks[1] = map(pack.data.sticks.sticks[1], 0, 1023, ANALOG_MAP_STICK1);
+				asticks[2] = map(pack.data.sticks.sticks[2], 0, 1023, ANALOG_MAP_STICK2);
+				asticks[3] = map(pack.data.sticks.sticks[3], 0, 1023, ANALOG_MAP_STICK3);
+				
+#ifdef DEBUG_PRINT
+				Serial.print("Servo data: ");
+				Serial.print(msticks[0]); Serial.print(' ');
+				Serial.print(msticks[1]); Serial.print(' ');
+				Serial.print(msticks[2]); Serial.print(' ');
+				Serial.print(msticks[3]); Serial.println();
+				
+				Serial.print("Analog data: ");
+				Serial.print(asticks[0]); Serial.print(' ');
+				Serial.print(asticks[1]); Serial.print(' ');
+				Serial.print(asticks[2]); Serial.print(' ');
+				Serial.print(asticks[3]); Serial.println();
+#endif
+
+				sticks_action(pack.data.sticks.sticks, msticks, asticks);
 				break;
 			}
 			
@@ -233,44 +265,31 @@ void on_disconnection() {
 	// analogWrite(CONNECT_A1, 0);
 	// analogWrite(CONNECT_A2, 0);
 	// analogWrite(CONNECT_A3, 0);
+	analogWrite(CONNECT_2, 0);
+	analogWrite(CONNECT_3, 0);
 };
 
 void button_action(int button, int lpress) {
-	
+	switch (button) {
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+			break;
+			
+		case 4: {
+			digitalWrite(CONNECT_A4, buttons[button].state);
+			break;
+		}
+		
+		case 5: {
+			digitalWrite(CONNECT_A5, buttons[button].state);
+			break;
+		};
+	}
 };
 
-void sticks_action(int sticks[4]) {
-	if (INVERT_STICK0) sticks[0] = 1024 - sticks[0];
-	if (INVERT_STICK1) sticks[1] = 1024 - sticks[1];
-	if (INVERT_STICK2) sticks[2] = 1024 - sticks[2];
-	if (INVERT_STICK3) sticks[3] = 1024 - sticks[3];
-	
-	int msticks[4];
-	msticks[0] = map(sticks[0], 0, 1023, SERVO_MAP_STICK0);
-	msticks[1] = map(sticks[1], 0, 1023, SERVO_MAP_STICK1);
-	msticks[2] = map(sticks[2], 0, 1023, SERVO_MAP_STICK2);
-	msticks[3] = map(sticks[3], 0, 1023, SERVO_MAP_STICK3);
-	
-	int asticks[4];
-	asticks[0] = map(sticks[0], 0, 1023, ANALOG_MAP_STICK0);
-	asticks[1] = map(sticks[1], 0, 1023, ANALOG_MAP_STICK1);
-	asticks[2] = map(sticks[2], 0, 1023, ANALOG_MAP_STICK2);
-	asticks[3] = map(sticks[3], 0, 1023, ANALOG_MAP_STICK3);
-	
-#ifdef DEBUG_PRINT
-	Serial.print("Servo write: ");
-	Serial.print(msticks[0]); Serial.print(' ');
-	Serial.print(msticks[1]); Serial.print(' ');
-	Serial.print(msticks[2]); Serial.print(' ');
-	Serial.print(msticks[3]); Serial.println();
-	
-	Serial.print("Analog write: ");
-	Serial.print(asticks[0]); Serial.print(' ');
-	Serial.print(asticks[1]); Serial.print(' ');
-	Serial.print(asticks[2]); Serial.print(' ');
-	Serial.print(asticks[3]); Serial.println();
-#endif
-	
+void sticks_action(int sticks[4], int msticks[4], int asticks[4]) {	
 	servo[0].write(msticks[0]);
 	servo[1].write(msticks[1]);
 	servo[2].write(msticks[2]);
@@ -281,7 +300,10 @@ void sticks_action(int sticks[4]) {
 	analogWrite(CONNECT_A2, asticks[2]);
 	analogWrite(CONNECT_A3, asticks[3]);
 	
-	// Drive via H-bridge
-	digitalWrite(CONNECT_5, asticks[2] > 140);
-	digitalWrite(CONNECT_6, asticks[2] < 110);
+	// Control H-Bridge over 3, 4 outputs with right stick
+	int value = (sticks[2] > 500) ? (sticks[2] - 500) : (sticks[2] < 480) ? (480 - sticks[2]) : (0);
+	value = map(value, 0, 500, 0, 255);
+	value = (value > 255) ? 255 : (value < 0) ? 0 : value;
+	analogWrite(CONNECT_3, sticks[2] > 500 ? value : 0);
+	analogWrite(CONNECT_4, sticks[2] < 480 ? value : 0);
 };
