@@ -26,6 +26,7 @@
 #define CONNECT_A3 A3
 #define CONNECT_A4 A4
 #define CONNECT_A5 A5
+// A6, A7 on nano are only analog input
 #define CONNECT_A6 A6
 #define CONNECT_A7 A7
 
@@ -199,11 +200,11 @@ void loop() {
 				if (INVERT_STICK2) pack.data.sticks.sticks[2] = 1024 - pack.data.sticks.sticks[2];
 				if (INVERT_STICK3) pack.data.sticks.sticks[3] = 1024 - pack.data.sticks.sticks[3];
 				
-				int msticks[4];
-				msticks[0] = map(pack.data.sticks.sticks[0], 0, 1023, SERVO_MAP_STICK0);
-				msticks[1] = map(pack.data.sticks.sticks[1], 0, 1023, SERVO_MAP_STICK1);
-				msticks[2] = map(pack.data.sticks.sticks[2], 0, 1023, SERVO_MAP_STICK2);
-				msticks[3] = map(pack.data.sticks.sticks[3], 0, 1023, SERVO_MAP_STICK3);
+				int ssticks[4];
+				ssticks[0] = map(pack.data.sticks.sticks[0], 0, 1023, SERVO_MAP_STICK0);
+				ssticks[1] = map(pack.data.sticks.sticks[1], 0, 1023, SERVO_MAP_STICK1);
+				ssticks[2] = map(pack.data.sticks.sticks[2], 0, 1023, SERVO_MAP_STICK2);
+				ssticks[3] = map(pack.data.sticks.sticks[3], 0, 1023, SERVO_MAP_STICK3);
 				
 				int asticks[4];
 				asticks[0] = map(pack.data.sticks.sticks[0], 0, 1023, ANALOG_MAP_STICK0);
@@ -213,10 +214,10 @@ void loop() {
 				
 #ifdef DEBUG_PRINT
 				Serial.print("Servo data: ");
-				Serial.print(msticks[0]); Serial.print(' ');
-				Serial.print(msticks[1]); Serial.print(' ');
-				Serial.print(msticks[2]); Serial.print(' ');
-				Serial.print(msticks[3]); Serial.println();
+				Serial.print(ssticks[0]); Serial.print(' ');
+				Serial.print(ssticks[1]); Serial.print(' ');
+				Serial.print(ssticks[2]); Serial.print(' ');
+				Serial.print(ssticks[3]); Serial.println();
 				
 				Serial.print("Analog data: ");
 				Serial.print(asticks[0]); Serial.print(' ');
@@ -225,7 +226,7 @@ void loop() {
 				Serial.print(asticks[3]); Serial.println();
 #endif
 
-				sticks_action(pack.data.sticks.sticks, msticks, asticks);
+				sticks_action(pack.data.sticks.sticks, ssticks, asticks);
 				break;
 			}
 			
@@ -273,36 +274,49 @@ void button_action(int button, int lpress) {
 	switch (button) {
 		case 0:
 		case 1:
-		case 2:
-		case 3:
 			break;
 			
+		case 2: {
+			digitalWrite(CONNECT_A0, buttons[button].state);
+			break;
+		}
+		
+		case 3: {
+			digitalWrite(CONNECT_A1, buttons[button].state);
+			break;
+		}
+		
 		case 4: {
-			digitalWrite(CONNECT_A4, buttons[button].state);
+			digitalWrite(CONNECT_A2, buttons[button].state);
 			break;
 		}
 		
 		case 5: {
-			digitalWrite(CONNECT_A5, buttons[button].state);
+			digitalWrite(CONNECT_A3, buttons[button].state);
 			break;
-		};
+		}
 	}
 };
 
-void sticks_action(int sticks[4], int msticks[4], int asticks[4]) {	
-	servo[0].write(msticks[0]);
-	servo[1].write(msticks[1]);
-	servo[2].write(msticks[2]);
-	servo[3].write(msticks[3]);
+void sticks_action(int sticks[4], int ssticks[4], int asticks[4]) {	
+	servo[0].write(ssticks[0]);
+	servo[1].write(ssticks[1]);
+	servo[2].write(ssticks[2]);
+	servo[3].write(ssticks[3]);
 	
-	analogWrite(CONNECT_A0, asticks[0]);
-	analogWrite(CONNECT_A1, asticks[1]);
-	analogWrite(CONNECT_A2, asticks[2]);
-	analogWrite(CONNECT_A3, asticks[3]);
+	// analogWrite(CONNECT_A0, asticks[0]);
+	// analogWrite(CONNECT_A1, asticks[1]);
+	// analogWrite(CONNECT_A2, asticks[2]);
+	// analogWrite(CONNECT_A3, asticks[3]);
 	
 	// Control H-Bridge over 3, 4 outputs with right stick
 	int value = (sticks[2] > 500) ? (sticks[2] - 500) : (sticks[2] < 480) ? (480 - sticks[2]) : (0);
-	value = map(value, 0, 500, 0, 255);
+	
+	if (value < 500)
+		value = map(value, 0, 480, 0, 255);
+	else
+		value = map(value, 0, 1023 - 500, 0, 255);
+	
 	value = (value > 255) ? 255 : (value < 0) ? 0 : value;
 	analogWrite(CONNECT_3, sticks[2] > 500 ? value : 0);
 	analogWrite(CONNECT_4, sticks[2] < 480 ? value : 0);

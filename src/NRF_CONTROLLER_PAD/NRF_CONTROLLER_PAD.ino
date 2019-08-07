@@ -18,13 +18,12 @@
 #define STICK2 A0
 #define STICK3 A1
 
-#define BTN_STICK0 3
-#define BTN_STICK1 6
-
-#define BTN0 5
-#define BTN1 4
-#define BTN2 9
-#define BTN3 A4
+#define BTN0 3
+#define BTN1 6
+#define BTN2 5
+#define BTN3 4
+#define BTN4 9
+#define BTN5 A4
 
 #define STLED 2
 
@@ -100,11 +99,14 @@ struct Package {
 	} data;
 };
 
-// info of sticks calibration
+// Info of sticks calibration
 STICK_CALIBRATION calibration;
 bool calibration_mode = 0;
 
 int sticks[4];
+
+// When entering lock mode, stick data is not updating from input
+bool lock_mode = 0;
 
 // info of buttons states
 BTN_STATE buttons;
@@ -190,32 +192,34 @@ void setup() {
 	pinMode(STICK2, INPUT_PULLUP);
 	pinMode(STICK3, INPUT_PULLUP);
 	
-	pinMode(BTN_STICK0, INPUT_PULLUP);
-	pinMode(BTN_STICK1, INPUT_PULLUP);
-	
 	pinMode(BTN0, INPUT_PULLUP);
 	pinMode(BTN1, INPUT_PULLUP);
+	
 	pinMode(BTN2, INPUT_PULLUP);
 	pinMode(BTN3, INPUT_PULLUP);
+	pinMode(BTN4, INPUT_PULLUP);
+	pinMode(BTN5, INPUT_PULLUP);
 }
 
 void loop() {
 	// Read sticks & map to calibration
-	sticks[0] = analogRead(STICK0);       
-	sticks[1] = analogRead(STICK1);       
-	sticks[2] = 1024 - analogRead(STICK2);
-	sticks[3] = 1024 - analogRead(STICK3);
+	if (!lock_mode) {
+		sticks[0] = analogRead(STICK0);       
+		sticks[1] = analogRead(STICK1);       
+		sticks[2] = 1024 - analogRead(STICK2);
+		sticks[3] = 1024 - analogRead(STICK3);
+	}
 	
 	// Read stick buttons
 	int rbtn[6];
-	rbtn[0] = !digitalRead(BTN_STICK0);
-	rbtn[1] = !digitalRead(BTN_STICK1);
+	rbtn[0] = !digitalRead(BTN0);
+	rbtn[1] = !digitalRead(BTN1);
 	
 	// read optional buttons
-	rbtn[2] = !digitalRead(BTN0);
-	rbtn[3] = !digitalRead(BTN1);
-	rbtn[4] = !digitalRead(BTN2);
-	rbtn[5] = !digitalRead(BTN3);
+	rbtn[2] = !digitalRead(BTN2);
+	rbtn[3] = !digitalRead(BTN3);
+	rbtn[4] = !digitalRead(BTN4);
+	rbtn[5] = !digitalRead(BTN5);
 	
 #ifdef DEBUG_PRINT
 #ifdef DEBUG_PRINT_RAW
@@ -237,7 +241,7 @@ void loop() {
 #endif
 
 	// Map to calibration
-	if (!calibration_mode) {		
+	if (!calibration_mode && !lock_mode) {		
 		sticks[0] = map(sticks[0], calibration.stmn[0], calibration.stmx[0], 0, 1023);
 		sticks[1] = map(sticks[1], calibration.stmn[1], calibration.stmx[1], 0, 1023);
 		sticks[2] = map(sticks[2], calibration.stmn[2], calibration.stmx[2], 0, 1023);
@@ -269,8 +273,6 @@ void loop() {
 		||
 		led_state.type == LED_ST_FAST_FLASH && (led_state.time + LED_ST_FAST_FLASH_TIME) < millis()) { // Flash period done
 		
-		// Serial.print("LED_STATE_UPDATE "); Serial.println(led_state.count);
-		
 		if (!led_state.state) { // Count cycle as finished, try to begin another one
 			--led_state.count;
 			if (led_state.count <= 0) { // Flashing cycles is done
@@ -286,9 +288,19 @@ void loop() {
 		}
 	}
 	
-	if (calibration_mode)
-		 if (led_state.type != LED_ST_FLASH && led_state.type != LED_ST_FAST_FLASH) 
+	// Update led flashing
+	if (led_state.type != LED_ST_FLASH && led_state.type != LED_ST_FAST_FLASH) {
+		 if (calibration_mode)
 			led_set(LED_ST_FAST_FLASH, 4);
+		else {
+			// Update led lighting
+			if (lock_mode)
+				led_set(LED_ST_CONST, 0);
+			else
+				led_set(LED_ST_OFF, 0);
+		}
+	}
+		
 	
 	// If !paired
 	if (calibration_mode) {
@@ -379,10 +391,10 @@ void btn_action(int number, int lpress) {
 		// calibration
 		case 0: { 
 			// press  = ?
-			// Lpress = calibration
+			// Lpress = calibration mode
 			
 			if (lpress) {
-				if (calibration_mode) {
+				if (calibration_mode && !lock_mode) {
 					// Write calibration values
 					byte* cal_struct = (byte*) &calibration;
 					for (int i = 0; i < sizeof(STICK_CALIBRATION); ++i)
@@ -415,35 +427,11 @@ void btn_action(int number, int lpress) {
 		
 		case 1: { 
 			// press  = ?
-			// Lpress = ?
+			// Lpress = lock mode
 			
-			break;
-		}
-		
-		case 2: { 
-			// press  = ?
-			// Lpress = ?
-			
-			break;
-		}
-		
-		case 3: { 
-			// press  = ?
-			// Lpress = ?
-			
-			break;
-		}
-		
-		case 4: {
-			// press  = ?
-			// Lpress = ?
-			
-			break;
-		}
-		
-		case 5: {
-			// press  = ?
-			// Lpress = ?
+			if (lpress) {
+				lock_mode = !lock_mode;
+			}
 			
 			break;
 		}
