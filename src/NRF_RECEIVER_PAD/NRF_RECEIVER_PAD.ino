@@ -112,6 +112,11 @@ void button_action(int button, int lpress);
 // Called on sticks state received
 void sticks_action(int sticks[4]);
 
+void setPWMNanofrequency(int freq) {
+	TCCR2B = TCCR2B & 0b11111000 | freq;
+	TCCR1B = TCCR1B & 0b11111000 | freq;
+}
+
 void setup() {
 #ifdef DEBUG_PRINT
 	Serial.begin(115200);
@@ -161,6 +166,8 @@ void setup() {
 	pinMode(CONNECT_A5, OUTPUT);
 	pinMode(CONNECT_A6, OUTPUT);
 	pinMode(CONNECT_A7, OUTPUT);
+	
+	// setPWMNanofrequency(0x02);
 	
 	// Set up servos
 	servo[0].attach(CONNECT_0); // Remapped servos to leave three PWM pins
@@ -298,6 +305,10 @@ void button_action(int button, int lpress) {
 	}
 };
 
+// Mpdes for output of the motor
+// #define MODE_2_DIGITAL_1_ANALOG
+#define MODE_2_ANALOG
+
 void sticks_action(int sticks[4], int ssticks[4], int asticks[4]) {	
 	servo[0].write(ssticks[0]);
 	servo[1].write(ssticks[1]);
@@ -318,6 +329,28 @@ void sticks_action(int sticks[4], int ssticks[4], int asticks[4]) {
 		value = map(value, 0, 1023 - 500, 0, 255);
 	
 	value = (value > 255) ? 255 : (value < 0) ? 0 : value;
+	
+	// connecting 2 digital pins as HIGH,LOW / LOW,HIGH and analog as speed value (used in bts79603 bridge)
+#ifdef MODE_2_DIGITAL_1_ANALOG
+	if (sticks[2] > 500) {
+		digitalWrite(CONNECT_1, HIGH);
+		digitalWrite(CONNECT_2, LOW);
+		analogWrite(CONNECT_3, value);
+	} else if (sticks[2] < 480) {
+		digitalWrite(CONNECT_1, LOW);
+		digitalWrite(CONNECT_2, HIGH);
+		analogWrite(CONNECT_3, value);
+	} else {
+		digitalWrite(CONNECT_1, LOW);
+		digitalWrite(CONNECT_2, LOW);
+		analogWrite(CONNECT_3, 0);
+	}
+#endif
+
+	// connecting 2 analog pins to simple H-Bridge
+#ifdef MODE_2_ANALOG
 	analogWrite(CONNECT_3, sticks[2] > 500 ? value : 0);
 	analogWrite(CONNECT_4, sticks[2] < 480 ? value : 0);
+	analogWrite(CONNECT_0, sticks[2] > 500 || sticks[2] < 480);
+#endif
 };
