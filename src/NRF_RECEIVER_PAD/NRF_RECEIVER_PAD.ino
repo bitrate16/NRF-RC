@@ -182,6 +182,23 @@ void setup() {
 	// Clear disconnect trigger
 	last_receive_time = millis();
 	disconnected = 0;
+	
+	// Reset outputs
+	digitalWrite(CONNECT_0, LOW);
+	digitalWrite(CONNECT_2, LOW);
+	digitalWrite(CONNECT_3, LOW);
+	digitalWrite(CONNECT_4, LOW);
+	digitalWrite(CONNECT_5, LOW);
+	digitalWrite(CONNECT_6, LOW);
+	
+	digitalWrite(CONNECT_A0, LOW);
+	digitalWrite(CONNECT_A1, LOW);
+	digitalWrite(CONNECT_A2, LOW);
+	digitalWrite(CONNECT_A3, LOW);
+	digitalWrite(CONNECT_A4, LOW);
+	digitalWrite(CONNECT_A5, LOW);
+	digitalWrite(CONNECT_A6, LOW);
+	digitalWrite(CONNECT_A7, LOW);
 }
 
 void loop() {
