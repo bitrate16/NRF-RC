@@ -58,6 +58,10 @@
 // Used to detect disconnect from the controller
 #define CONNECTION_TIMEOUT 100
 
+// Mpdes for output of the motor
+// #define MODE_2_DIGITAL_1_ANALOG
+#define MODE_2_ANALOG
+
 
 // Receiver package struct.
 // Contains type and values for button or values for sticks
@@ -273,8 +277,16 @@ void on_disconnection() {
 	// analogWrite(CONNECT_A1, 0);
 	// analogWrite(CONNECT_A2, 0);
 	// analogWrite(CONNECT_A3, 0);
-	analogWrite(CONNECT_2, 0);
-	analogWrite(CONNECT_3, 0);
+#ifdef MODE_2_DIGITAL_1_ANALOG
+	digitalWrite(CONNECT_1, LOW);
+	digitalWrite(CONNECT_2, LOW);
+	digitalWrite(CONNECT_3, LOW);
+#endif
+#ifdef MODE_2_ANALOG
+	digitalWrite(CONNECT_3, LOW);
+	digitalWrite(CONNECT_4, LOW);
+	digitalWrite(CONNECT_0, LOW);
+#endif
 };
 
 void button_action(int button, int lpress) {
@@ -304,10 +316,6 @@ void button_action(int button, int lpress) {
 		}
 	}
 };
-
-// Mpdes for output of the motor
-// #define MODE_2_DIGITAL_1_ANALOG
-#define MODE_2_ANALOG
 
 void sticks_action(int sticks[4], int ssticks[4], int asticks[4]) {	
 	servo[0].write(ssticks[0]);
