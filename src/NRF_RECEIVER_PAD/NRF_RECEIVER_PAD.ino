@@ -174,8 +174,8 @@ void setup() {
 	// setPWMNanofrequency(0x02);
 	
 	// Set up servos
-	servo[0].attach(CONNECT_0); // Remapped servos to leave three PWM pins
-	servo[1].attach(CONNECT_1);
+	servo[0].attach(CONNECT_A0); // Remapped servos to leave three PWM pins
+	servo[1].attach(CONNECT_A1);
 	servo[2].attach(CONNECT_5);
 	servo[3].attach(CONNECT_6);
 	
