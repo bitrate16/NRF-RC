@@ -168,14 +168,14 @@ void setup() {
 	pinMode(CONNECT_A3, OUTPUT);
 	pinMode(CONNECT_A4, OUTPUT);
 	pinMode(CONNECT_A5, OUTPUT);
-	pinMode(CONNECT_A6, OUTPUT);
-	pinMode(CONNECT_A7, OUTPUT);
+	pinMode(CONNECT_A6, INPUT);
+	pinMode(CONNECT_A7, INPUT);
 	
 	// setPWMNanofrequency(0x02);
 	
 	// Set up servos
-	servo[0].attach(CONNECT_A0); // Remapped servos to leave three PWM pins
-	servo[1].attach(CONNECT_A1);
+	servo[0].attach(CONNECT_A4); // Remapped servos to leave three PWM pins
+	servo[1].attach(CONNECT_A5);
 	servo[2].attach(CONNECT_5);
 	servo[3].attach(CONNECT_6);
 	
@@ -197,8 +197,8 @@ void setup() {
 	digitalWrite(CONNECT_A3, LOW);
 	digitalWrite(CONNECT_A4, LOW);
 	digitalWrite(CONNECT_A5, LOW);
-	digitalWrite(CONNECT_A6, LOW);
-	digitalWrite(CONNECT_A7, LOW);
+	// digitalWrite(CONNECT_A6, LOW);
+	// digitalWrite(CONNECT_A7, LOW);
 }
 
 void loop() {
