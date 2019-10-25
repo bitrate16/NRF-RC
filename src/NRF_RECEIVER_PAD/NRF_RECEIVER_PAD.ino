@@ -125,9 +125,13 @@ void setup() {
 #ifdef DEBUG_PRINT
 	Serial.begin(115200);
 #endif
-
+	
 	// Set up receiver
 	radio.begin();
+
+	radio.powerDown();
+	delay(200);
+	radio.powerUp();
 	
 	radio.setChannel(77);
 	//radio.setAutoAck(1);
