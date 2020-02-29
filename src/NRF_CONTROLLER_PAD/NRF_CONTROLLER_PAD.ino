@@ -115,7 +115,7 @@ LED_STATE led_state;
 // Use NRF24lo1 transmitter on pins 7, 8
 RF24 radio(7, 8);
 
-byte address[6] = "OLEGE";
+byte addresses[][6] = { "OLEGE", "PIDOR" };
 
 // Amount of sequently dropped packages. Used to detect disconnect
 int tx_dropped = 0;
@@ -147,12 +147,14 @@ void setup() {
   // Set up transmitter
   radio.begin();
   
-  radio.enableAckPayload();
+  //radio.enableAckPayload();
   //radio.setPayloadSize(1);
   //radio.setCRCLength(RF24_CRC_8);
-  radio.openWritingPipe(address);
+  radio.openWritingPipe(addresses[0]);
+  radio.openReadingPipe(1, addresses[1]);
   radio.setPALevel(RF24_PA_MAX);
   //radio.setDataRate(RF24_250KBPS);
+  radio.setRetries(3, 5);
   radio.setChannel(77);
   
 #ifdef DEBUG_PRINT
@@ -340,16 +342,22 @@ void loop() {
 }
 
 int send_package(byte* pack, int size) {
+  radio.stopListening();
   if (!radio.write(pack, size)) {
+    radio.startListening();
     ++tx_dropped;
     return 0;
   } else {
+    radio.startListening();
+    /*
+    // Receive ACK
     int payload;
-    if (radio.isAckPayloadAvailable()) {
+    if (radio.available()) {
       radio.read(&payload, sizeof(int));
       tx_dropped = 0;
       return 1;
     }
+    */
     ++tx_dropped;
     return 0;
   }
