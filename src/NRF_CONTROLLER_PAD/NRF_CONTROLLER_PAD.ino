@@ -349,7 +349,7 @@ int send_package(byte* pack, int size) {
     return 0;
   } else {
     radio.startListening();
-    /*
+
     // Receive ACK
     int payload;
     if (radio.available()) {
@@ -357,7 +357,7 @@ int send_package(byte* pack, int size) {
       tx_dropped = 0;
       return 1;
     }
-    */
+    
     ++tx_dropped;
     return 0;
   }

@@ -217,13 +217,12 @@ void loop() {
     // Receive data
     Package pack;
     radio.read((byte*) &pack, sizeof(Package));
-/*
+
     // Respond with ACK
     radio.stopListening();
     int payload = 13;
     radio.write((byte) &payload, sizeof(int));
     radio.startListening();
-*/
     
     // Update trigger
     last_receive_time = millis();
