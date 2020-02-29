@@ -130,10 +130,11 @@ void setup() {
   radio.begin();
 
   //radio.powerDown();
-  delay(1000);
+  //delay(1000);
   //radio.powerUp();
   
   radio.enableAckPayload();
+  radio.setPayloadSize(1);
   radio.setCRCLength(RF24_CRC_8);
   radio.openWritingPipe(addresses[0]);
   radio.openReadingPipe(1, addresses[1]);
@@ -209,10 +210,11 @@ void setup() {
 
 void loop() {
   byte payload = 13;
-  radio.writeAckPayload(1, &payload, sizeof(byte));
+  radio.writeAckPayload(0, &payload, sizeof(byte));
   if (radio.available()) {
     Package pack;
     radio.read((byte*) &pack, sizeof(Package));
+    
     
     // Update trigger
     last_receive_time = millis();

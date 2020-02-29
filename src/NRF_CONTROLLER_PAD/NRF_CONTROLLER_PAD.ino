@@ -148,6 +148,7 @@ void setup() {
   radio.begin();
   
   radio.enableAckPayload();
+  radio.setPayloadSize(1);
   radio.setCRCLength(RF24_CRC_8);
   radio.openWritingPipe(addresses[1]);
   radio.openReadingPipe(1, addresses[0]);
