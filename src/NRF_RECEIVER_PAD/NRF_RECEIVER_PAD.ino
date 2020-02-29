@@ -92,7 +92,7 @@ struct Button {
 // Use NRF24lo1 transmitter on pins 7, 8
 RF24 radio(9, 10);
 
-byte addresses[][6] = { "OLEGE", "PIDOR" };
+byte address[6] = "OLEGE";
 
 // Used to detect timed disconnection from the controller
 unsigned long last_receive_time;
@@ -134,12 +134,11 @@ void setup() {
   //radio.powerUp();
   
   radio.enableAckPayload();
-  radio.setPayloadSize(1);
-  radio.setCRCLength(RF24_CRC_8);
-  radio.openWritingPipe(addresses[0]);
-  radio.openReadingPipe(1, addresses[1]);
+  //radio.setPayloadSize(1);
+  //radio.setCRCLength(RF24_CRC_8);
+  radio.openReadingPipe(1, address);
   radio.setPALevel(RF24_PA_MAX);
-  radio.setDataRate(RF24_250KBPS);
+  //radio.setDataRate(RF24_250KBPS);
   radio.setChannel(77);
 
 #ifdef DEBUG_PRINT
@@ -152,6 +151,10 @@ void setup() {
 #endif
   
   radio.startListening();
+
+  // Preload data
+  int payload = 13;
+  radio.writeAckPayload(1, &payload, sizeof(int));
   
   // Init buttons with 0
   buttons[0] = { 0, 0 };
@@ -209,12 +212,13 @@ void setup() {
 }
 
 void loop() {
-  byte payload = 13;
-  radio.writeAckPayload(0, &payload, sizeof(byte));
   if (radio.available()) {
     Package pack;
     radio.read((byte*) &pack, sizeof(Package));
-    
+
+    // Respond with ACK
+    int payload = 13;
+    radio.writeAckPayload(1, &payload, sizeof(int));
     
     // Update trigger
     last_receive_time = millis();
