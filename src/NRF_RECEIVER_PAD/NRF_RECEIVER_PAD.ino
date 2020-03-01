@@ -5,7 +5,7 @@
 #include <SPI.h>
 #include "RF24.h"
 
- #define DEBUG_PRINT
+// #define DEBUG_PRINT
 #ifdef DEBUG_PRINT
 #include <printf.h>
 #endif
@@ -92,7 +92,7 @@ struct Button {
 // Use NRF24lo1 transmitter on pins 7, 8
 RF24 radio(9, 10);
 
-byte addresses[][6] = { "OLEGE", "PIDOR" };
+byte address[6] = "BLYAT";
 
 // Used to detect timed disconnection from the controller
 unsigned long last_receive_time;
@@ -129,33 +129,24 @@ void setup() {
   // Set up receiver
   radio.begin();
 
-  //radio.powerDown();
-  //delay(1000);
-  //radio.powerUp();
-  
-  //radio.enableAckPayload();
-  //radio.setPayloadSize(1);
-  //radio.setCRCLength(RF24_CRC_8);
-  radio.openWritingPipe(addresses[1]);
-  radio.openReadingPipe(1, addresses[0]);
+  radio.enableAckPayload();
+  //radio.setAutoAck(0);
+  //radio.setPayloadSize(sizeof(int));
+  radio.setCRCLength(RF24_CRC_8);
   radio.setPALevel(RF24_PA_MAX);
   //radio.setDataRate(RF24_250KBPS);
   radio.setChannel(77);
-
-#ifdef DEBUG_PRINT
-  if (!radio.isChipConnected())
-    Serial.println("Radio not connected");
+  radio.openReadingPipe(1, address);
+  //radio.setRetries(3, 5);
+  radio.startListening();
   
+#ifdef DEBUG_PRINT
   // Debugger output
   printf_begin();
   radio.printDetails();
 #endif
   
   radio.startListening();
-
-  // Preload data
-  int payload = 13;
-  radio.writeAckPayload(1, &payload, sizeof(int));
   
   // Init buttons with 0
   buttons[0] = { 0, 0 };
@@ -179,8 +170,8 @@ void setup() {
   pinMode(CONNECT_A3, OUTPUT);
   pinMode(CONNECT_A4, OUTPUT);
   pinMode(CONNECT_A5, OUTPUT);
-  pinMode(CONNECT_A6, INPUT);
-  pinMode(CONNECT_A7, INPUT);
+  //pinMode(CONNECT_A6, INPUT);
+  //pinMode(CONNECT_A7, INPUT); // NEVER INITIALIZE THIS FUCKING PINS
   
   // setPWMNanofrequency(0x02);
   
@@ -213,16 +204,11 @@ void setup() {
 }
 
 void loop() {
+  byte payload = 13;
+  radio.writeAckPayload(1, &payload, sizeof(byte));
   if (radio.available()) {
-    // Receive data
     Package pack;
     radio.read((byte*) &pack, sizeof(Package));
-
-    // Respond with ACK
-    radio.stopListening();
-    int payload = 13;
-    radio.write((byte) &payload, sizeof(int));
-    radio.startListening();
     
     // Update trigger
     last_receive_time = millis();

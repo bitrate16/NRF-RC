@@ -5,7 +5,7 @@
 #include <SPI.h>
 #include "RF24.h"
 
- #define DEBUG_PRINT
+// #define DEBUG_PRINT
 // #define DEBUG_PRINT_RAW
 #ifdef DEBUG_PRINT
 #include <printf.h>
@@ -115,7 +115,7 @@ LED_STATE led_state;
 // Use NRF24lo1 transmitter on pins 7, 8
 RF24 radio(7, 8);
 
-byte addresses[][6] = { "OLEGE", "PIDOR" };
+byte address[7] = "BLYAT";
 
 // Amount of sequently dropped packages. Used to detect disconnect
 int tx_dropped = 0;
@@ -147,20 +147,18 @@ void setup() {
   // Set up transmitter
   radio.begin();
   
-  //radio.enableAckPayload();
-  //radio.setPayloadSize(1);
-  //radio.setCRCLength(RF24_CRC_8);
-  radio.openWritingPipe(addresses[0]);
-  radio.openReadingPipe(1, addresses[1]);
+  radio.enableAckPayload();
+  //radio.setAutoAck(0);
+  //radio.setPayloadSize(sizeof(int));
+  radio.setCRCLength(RF24_CRC_8);
   radio.setPALevel(RF24_PA_MAX);
   //radio.setDataRate(RF24_250KBPS);
-  radio.setRetries(3, 5);
   radio.setChannel(77);
+  radio.openWritingPipe(address);
+  //radio.setRetries(3, 5);
+  radio.stopListening();
   
 #ifdef DEBUG_PRINT
-  if (!radio.isChipConnected())
-    Serial.println("Radio not connected");
-    
   printf_begin();
   radio.printDetails();
 #endif
@@ -342,22 +340,16 @@ void loop() {
 }
 
 int send_package(byte* pack, int size) {
-  radio.stopListening();
   if (!radio.write(pack, size)) {
-    radio.startListening();
     ++tx_dropped;
     return 0;
   } else {
-    radio.startListening();
-
-    // Receive ACK
-    int payload;
-    if (radio.available()) {
-      radio.read(&payload, sizeof(int));
+    byte payload;
+    if (radio.isAckPayloadAvailable()) {
+      radio.read(&payload, sizeof(byte));
       tx_dropped = 0;
       return 1;
     }
-    
     ++tx_dropped;
     return 0;
   }
