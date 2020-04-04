@@ -2,6 +2,7 @@
 // 6 buttons, 4-way sticks.
 
 #include <Servo.h>
+#include <EEPROM.h>
 #include <SPI.h>
 #include "RF24.h"
 
@@ -39,8 +40,8 @@
 // Mappings for sticks
 #define SERVO_MAP_STICK0 0, 180
 #define SERVO_MAP_STICK1 0, 180
-#define SERVO_MAP_STICK2 0, 180
-#define SERVO_MAP_STICK3 0, 180
+#define SERVO_MAP_STICK2 30, 150
+#define SERVO_MAP_STICK3 30, 150
 
 #define ANALOG_MAP_STICK0 0, 255
 #define ANALOG_MAP_STICK1 0, 255
@@ -85,8 +86,13 @@ struct Button {
   bool lstate;
 };
 
+// Structure with trimming values for sticks 2, 3
+struct Stick1Trim {
+  int sticks[2];
+};
+
 // Use NRF24lo1 transmitter on pins 7, 8
-RF24 radio(9, 10);
+RF24 radio(10, 9);
 
 byte address[6] = "BLYAT";
 
@@ -117,6 +123,8 @@ void setPWMNanofrequency(int freq) {
   TCCR1B = TCCR1B & 0b11111000 | freq;
 }
 
+Stick1Trim stick1Trim;
+
 void setup() {
 #ifdef DEBUG_PRINT
   Serial.begin(115200);
@@ -140,6 +148,20 @@ void setup() {
   // Debugger output
   printf_begin();
   radio.printDetails();
+#endif
+
+  // Read trimming values
+  byte* trim_struct = (byte*) &stick1Trim;
+  for (int i = 0; i < sizeof(Stick1Trim); ++i)
+    trim_struct[i] = EEPROM.read(i);
+
+#ifdef DEBUG_PRINT
+  Serial.println("Stick 1 trimming: ");
+    Serial.print('(');
+    Serial.print(stick1Trim.sticks[0]);
+    Serial.print(", ");
+    Serial.print(stick1Trim.sticks[1]);
+  Serial.println();
 #endif
   
   radio.startListening();
@@ -298,21 +320,45 @@ void button_action(int button, int lpress) {
       break;
       
     case 2: {
+      --stick1Trim.sticks[0];
+      // Write trim values
+      byte* trim_struct = (byte*) &stick1Trim;
+      for (int i = 0; i < sizeof(Stick1Trim); ++i)
+        EEPROM.write(i, trim_struct[i]);
+        
       digitalWrite(CONNECT_A0, buttons[button].state);
       break;
     }
     
     case 3: {
+      ++stick1Trim.sticks[0];
+      // Write trim values
+      byte* trim_struct = (byte*) &stick1Trim;
+      for (int i = 0; i < sizeof(Stick1Trim); ++i)
+        EEPROM.write(i, trim_struct[i]);
+        
       digitalWrite(CONNECT_A1, buttons[button].state);
       break;
     }
     
     case 4: {
+      ++stick1Trim.sticks[1];
+      // Write trim values
+      byte* trim_struct = (byte*) &stick1Trim;
+      for (int i = 0; i < sizeof(Stick1Trim); ++i)
+        EEPROM.write(i, trim_struct[i]);
+        
       digitalWrite(CONNECT_A2, buttons[button].state);
       break;
     }
     
     case 5: {
+      --stick1Trim.sticks[1];
+      // Write trim values
+      byte* trim_struct = (byte*) &stick1Trim;
+      for (int i = 0; i < sizeof(Stick1Trim); ++i)
+        EEPROM.write(i, trim_struct[i]);
+        
       digitalWrite(CONNECT_A3, buttons[button].state);
       break;
     }
@@ -320,8 +366,8 @@ void button_action(int button, int lpress) {
 };
 
 void sticks_action(int sticks[4], int ssticks[4], int asticks[4]) {
-  servo[2].write(ssticks[2]);
-  servo[3].write(ssticks[3]);
+  servo[2].write(ssticks[2] + stick1Trim.sticks[0]);
+  servo[3].write(ssticks[3] + stick1Trim.sticks[1]);
   
   analogWrite(CONNECT_3, asticks[0]);
 };
